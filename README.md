@@ -7,3 +7,10 @@ LibreHub features the following features.
 3. Search, What are the available in the system.
 4. CLI Dashboard.
 5. User & Role Management, user management for staff and users.
+
+#Members
+Pacada
+Fiel
+Bolo
+Pantaleon
+Corpus
