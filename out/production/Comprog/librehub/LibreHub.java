@@ -72,7 +72,62 @@ public class LibreHub {
         input.close();
     }
 
+
     private static void viewAllBooks(List<Book> books) {
         System.out.println("\n===== BOOK CATALOG =====");
         printTable(books);
+    }
+    
+    // SEARCH
+    // Pacada
+
+    private static void searchBooks(Scanner input, List<Book> books) {
+        System.out.println("\n----- SEARCH BOOKS -----");
+        System.out.println("1. By Title (partial match)");
+        System.out.println("2. By Category (partial match)");
+        System.out.println("3. By Year (exact match)");
+        System.out.print("Search by: ");
+        String option = input.nextLine().trim();
+
+        if (!option.equals("1") && !option.equals("2") && !option.equals("3")) {
+            System.out.println("Invalid search option!");
+            return;
+        }
+
+        System.out.print("Enter keyword: ");
+        String keyword = input.nextLine().trim();
+
+        if (keyword.isEmpty()) {
+            System.out.println("Search keyword cannot be empty!");
+            return;
+        }
+
+        List<Book> results = findBooks(books, option, keyword);
+
+        if (results.isEmpty()) {
+            System.out.println("No books found matching \"" + keyword + "\".");
+        } else {
+            System.out.println("\nFound " + results.size()
+                    + " book(s) matching \"" + keyword + "\":");
+            printTable(results);
+        }
+    }
+
+    static List<Book> findBooks(List<Book> books, String option, String keyword) {
+        List<Book> results = new ArrayList<>();
+        String needle = keyword.toLowerCase(Locale.ROOT);
+
+        for (Book book : books) {
+            boolean match = switch (option) {
+                case "1" -> book.title.toLowerCase(Locale.ROOT).contains(needle);
+                case "2" -> book.category.toLowerCase(Locale.ROOT).contains(needle);
+                case "3" -> String.valueOf(book.year).equals(keyword);
+                default -> false;
+            };
+
+            if (match) {
+                results.add(book);
+            }
+        }
+        return results;
     }
