@@ -129,5 +129,101 @@ public class LibreHub {
                 results.add(book);
             }
         }
+
+        
         return results;
+    }
+    private static void circulationMenu(Scanner input, List<Book> books) {
+        int choice = 0;
+
+        do {
+            System.out.println("\n=== DIGILIB: CIRCULATION ===");
+            System.out.println("[1] Borrow Book");
+            System.out.println("[2] Return Book");
+            System.out.println("[3] View Records");
+            System.out.println("[4] Back to Main Menu");
+            System.out.print("Choice: ");
+
+            if (!input.hasNextInt()) {
+                System.out.println("Invalid input!");
+                input.nextLine();
+                continue;
+            }
+
+            choice = input.nextInt();
+            input.nextLine();
+
+            switch (choice) {
+                case 1 -> borrowBook(input, books);
+                case 2 -> returnBook(input, books);
+                case 3 -> viewBorrowingRecords(books);
+                case 4 -> System.out.println("Returning to main menu...");
+                default -> System.out.println("Invalid choice!");
+            }
+
+        } while (choice != 4);
+    }
+
+    private static void borrowBook(Scanner input, List<Book> books) {
+        printBookStatus(books);
+
+        System.out.print("Enter Book Number: ");
+        int index = readBookNumber(input, books.size());
+        if (index < 0) {
+            System.out.println("Invalid book number!");
+            return;
+        }
+
+        Book book = books.get(index);
+        if (book.borrower != null) {
+            System.out.println("Book already borrowed!");
+            return;
+        }
+
+        System.out.print("Student Name: ");
+        String name = input.nextLine().trim();
+
+        if (name.isEmpty()) {
+            System.out.println("Name cannot be empty!");
+            return;
+        }
+
+        book.borrower = name;
+        System.out.println("Borrow successful!");
+    }
+
+    private static void returnBook(Scanner input, List<Book> books) {
+        printBookStatus(books);
+
+        System.out.print("Enter Book Number: ");
+        int index = readBookNumber(input, books.size());
+        if (index < 0) {
+            System.out.println("Invalid book number!");
+            return;
+        }
+
+        Book book = books.get(index);
+        if (book.borrower == null) {
+            System.out.println("Book is not borrowed!");
+            return;
+        }
+
+        book.borrower = null;
+        System.out.println("Return successful!");
+    }
+
+    private static void viewBorrowingRecords(List<Book> books) {
+        System.out.println("\n=== BORROWING RECORDS ===");
+        boolean any = false;
+
+        for (Book book : books) {
+            if (book.borrower != null) {
+                System.out.println(book.title + " - " + book.borrower);
+                any = true;
+            }
+        }
+
+        if (!any) {
+            System.out.println("No books are currently borrowed.");
+        }
     }
