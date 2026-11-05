@@ -1219,3 +1219,77 @@ public class LibreHub {
         }
         return shown;
     }
+// 11. BORROWING AND RETURNING
+
+    /*
+     
+Borrow rules:
+members may only borrow for themselves; staff may borrow for any member
+the book must exist and be on the shelf
+the borrower may not have overdue books
+the borrower may hold at most MAX_ACTIVE_LOANS books
+*/
+static void borrow(String actor, String borrower, int bookNumber) throws IOException {
+   int u = findUser(borrower);
+   if (u < 0) {
+       throw new IllegalArgumentException("No user named '" + borrower + "'.");}
+   if (MEMBER.equals(roleOf(actor)) && !sameName(userName[u], actor)) {
+       throw new IllegalArgumentException("Members can only borrow books for themselves.");}
+   int b = findBook(bookNumber);
+   if (b < 0) {
+       throw new IllegalArgumentException("No book with ID " + bookNumber + ".");}
+   if (bookOnLoan[b]) {
+       throw new IllegalArgumentException("'" + bookTitle[b] + "' is already on loan.");}
+   int open = 0;
+   boolean overdue = false;
+   for (int k = 0; k < loanCount; k++) {
+       if (loanReturned[k] == -1 && sameName(loanUser[k], userName[u])) {
+           open++;
+           if (isOverdue(k)) {
+               overdue = true;}}}
+   if (overdue) {
+       throw new IllegalArgumentException(userFullName[u] + " has overdue books and must return them first.");}
+   if (open >= MAX_ACTIVE_LOANS) {
+       throw new IllegalArgumentException(userFullName[u] + " already has the maximum of "+ MAX_ACTIVE_LOANS + " active loans.");}
+   if (loanCount >= MAX_LOANS) {
+       throw new IllegalArgumentException("The loan list is full.");}
+   int id = nextLoanId();
+   loanId[loanCount] = id;
+   loanBookId[loanCount] = bookNumber;
+   loanUser[loanCount] = userName[u];
+   loanBorrowed[loanCount] = today;
+   loanDue[loanCount] = today + LOAN_DAYS;
+   loanReturned[loanCount] = -1;
+   loanCount++;
+   bookOnLoan[b] = true;
+   saveBooks();
+   saveLoans();
+   audit("BORROW loan #" + id + " book #" + bookNumber + " by " + userName[u]);
+   System.out.println("Loan #" + id + " created. Due " + fromDayNumber(today + LOAN_DAYS)+ " (" + LOAN_DAYS + " days).");}
+
+    static void returnLoan(String actor, int id) throws IOException {
+        int k = findLoan(id);
+        if (k < 0) {
+            throw new IllegalArgumentException("No loan with ID " + id + ".");
+        }
+        if (loanReturned[k] != -1) {
+            throw new IllegalArgumentException("Loan #" + id + " has already been returned.");
+        }
+        if (MEMBER.equals(roleOf(actor)) && !sameName(loanUser[k], actor)) {
+            throw new IllegalArgumentException("You can only return your own loans.");
+        }
+        int late = overdueDays(k);
+        loanReturned[k] = today;
+        int b = findBook(loanBookId[k]);
+        if (b >= 0) {
+            bookOnLoan[b] = false;
+        }
+        saveBooks();
+        saveLoans();
+        audit("RETURN loan #" + id + " by " + actor);
+        if (late > 0) {
+            System.out.println("Returned. It was " + late + " day(s) overdue.");
+        } else {
+            System.out.println("Returned on time.");
+        }
+    }
