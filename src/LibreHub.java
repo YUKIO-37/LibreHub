@@ -211,3 +211,94 @@ public class LibreHub {
             throw new IllegalArgumentException("Password must be at least " + MIN_PASSWORD + " characters.");
         }
     }
+// 4. DATE HELPERS
+    static int toDayNumber(int year, int month, int day) {
+        int a = (14 - month) / 12;
+        int y = year + 4800 - a;
+        int m = month + 12 * a - 3;
+        return day + (153 * m + 2) / 5 + 365 * y + y / 4 - y / 100 + y / 400 - 32045;
+    }
+
+    // Converts a day number back to "YYYY-MM-DD".
+
+    static String fromDayNumber(int dayNumber) {
+        int a = dayNumber + 32044;
+        int b = (4 * a + 3) / 146097;
+        int c = a - (146097 * b) / 4;
+        int d = (4 * c + 3) / 1461;
+        int e = c - (1461 * d) / 4;
+        int m = (5 * e + 2) / 153;
+        int day = e - (153 * m + 2) / 5 + 1;
+        int month = m + 3 - 12 * (m / 10);
+        int year = 100 * b + d - 4800 + m / 10;
+        return year + "-" + twoDigits(month) + "-" + twoDigits(day);
+    }
+
+    static String twoDigits(int n) {
+        if (n < 10) {
+            return "0" + n;
+        }
+        return "" + n;
+    }
+
+    static int yearOf(int dayNumber) {
+        int a = dayNumber + 32044;
+        int b = (4 * a + 3) / 146097;
+        int c = a - (146097 * b) / 4;
+        int d = (4 * c + 3) / 1461;
+        int e = c - (1461 * d) / 4;
+        int m = (5 * e + 2) / 153;
+        return 100 * b + d - 4800 + m / 10;
+    }
+
+    static int daysInMonth(int year, int month) {
+        int[] days = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+        if (month == 2 && ((year % 4 == 0 && year % 100 != 0)  year % 400 == 0)) {
+            return 29;
+        }
+        return days[month - 1];
+    }
+
+    // Parses "YYYY-MM-DD" and checks that the date exists.
+
+    static int parseDate(String text) {
+        String[] parts = text.split("-");
+        if (parts.length != 3) {
+            throw new IllegalArgumentException("Date must look like YYYY-MM-DD.");
+        }
+        int year;
+        int month;
+        int day;
+        try {
+            year = Integer.parseInt(parts[0]);
+            month = Integer.parseInt(parts[1]);
+            day = Integer.parseInt(parts[2]);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Date must look like YYYY-MM-DD.");
+        }
+        if (year < MIN_YEAR  month < 1  month > 12  day < 1 || day > daysInMonth(year, month)) {
+            throw new IllegalArgumentException("'" + text + "' is not a valid date.");
+        }
+        return toDayNumber(year, month, day);
+    }
+
+    // Days from borrowing to return, or to today while the book is still out.
+
+    static int daysOut(int k) {
+        int end = loanReturned[k] == -1 ? today : loanReturned[k];
+        return end - loanBorrowed[k];
+    }
+
+    // Days past the due date (0 if not late).
+
+    static int overdueDays(int k) {
+        int end = loanReturned[k] == -1 ? today : loanReturned[k];
+        if (end > loanDue[k]) {
+            return end - loanDue[k];
+        }
+        return 0;
+    }
+
+    static boolean isOverdue(int k) {
+        return loanReturned[k] == -1 && overdueDays(k) > 0;
+    }
