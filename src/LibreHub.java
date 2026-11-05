@@ -110,3 +110,104 @@ public class LibreHub {
         }
         return text;
     }
+// 3. TEXT HELPERS AND CHECKS
+    // Removes spaces from both ends, using charAt (String.trim is not in the slides).
+    static String clean(String text) {
+        int start = 0;
+        int end = text.length();
+        while (start < end && text.charAt(start) == ' ') {
+            start++;
+        }
+        while (end > start && text.charAt(end - 1) == ' ') {
+            end--;
+        }
+        String result = "";
+        for (int i = start; i < end; i++) {
+            result = result + text.charAt(i);
+        }
+        return result;
+    }
+
+    static boolean isBlank(String text) {
+        return clean(text).length() == 0;
+    }
+
+    // True if the text contains a slash or a backslash (checked with charAt, not indexOf).
+    static boolean hasSeparator(String text) {
+        for (int i = 0; i < text.length(); i++) {
+            if (text.charAt(i) == '/'  text.charAt(i) == '\') {
+                return true;
+            }
+        }
+        return false;
+    }
+
+
+    //The first 'count' characters of the text.
+
+    static String firstChars(String text, int count) {
+        String result = "";
+        for (int i = 0; i < count; i++) {
+            result = result + text.charAt(i);
+        }
+        return result;
+    }
+
+    // Case-insensitive comparison, built from toLowerCase() and equals().
+    static boolean sameName(String a, String b) {
+        return a.toLowerCase().equals(b.toLowerCase());
+    }
+
+    static String pad(String text, int width) {
+        String result = text;
+        while (result.length() < width) {
+            result = result + " ";
+        }
+        return result;
+    }
+
+    static String cut(String text, int max) {
+        if (text.length() <= max) {
+            return text;
+        }
+        return firstChars(text, max - 3) + "...";
+    }
+
+    static String dashes(int count) {
+        String line = "";
+        for (int i = 0; i < count; i++) {
+            line = line + "-";
+        }
+        return line;
+    }
+
+    // Text must not be empty and must not contain ';', which separates fields in the files.
+
+    static void checkText(String value, String field) {
+        if (value == null  value.length() == 0) {
+            throw new IllegalArgumentException(field + " cannot be empty.");
+        }
+        if (value.contains(";")) {
+            throw new IllegalArgumentException(field + " cannot contain ';'.");
+        }
+    }
+
+    static void checkUsername(String name) {
+        if (name.length() < 3  name.length() > 20) {
+            throw new IllegalArgumentException("Username must be 3-20 characters.");
+        }
+        for (int i = 0; i < name.length(); i++) {
+            char c = name.charAt(i);
+            boolean allowed = (c >= 'a' && c <= 'z')  (c >= 'A' && c <= 'Z')
+                     (c >= '0' && c <= '9')  c == '.'  c == '';
+            if (!allowed) {
+                throw new IllegalArgumentException("Username may only use letters, digits, '.' and ''.");
+            }
+        }
+    }
+
+    static void checkPassword(String password) {
+        if (password == null  password.length() < MIN_PASSWORD) {
+            throw new IllegalArgumentException("Password must be at least " + MIN_PASSWORD + " characters.");
+        }
+    }
