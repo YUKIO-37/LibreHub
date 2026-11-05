@@ -2,6 +2,7 @@
 
 LibreHub is a Java-based CLI system with a purpose of meeting the needs of a library setting.
 LibreHub features the following features.
+
 1. A Database system for the books stored. (Category, Genre, Year of Publication, and Title).
 2. Book borrowing system, included with a tracker on how long the book has been borrowed, the date of return, and overdue days.
 3. Search, What are the available books in the system.
