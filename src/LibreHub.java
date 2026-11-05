@@ -1050,3 +1050,172 @@ public class LibreHub {
         System.out.println("Role for '" + userName[i] + "' changed to " + roleLabel(newRole) + ".");
     }
 
+   // 10. BOOK CRUD AND SEARCH
+
+    static int categoryIndex(String text) {
+        for (int i = 0; i < CATEGORIES.length; i++) {
+            if (sameName(CATEGORIES[i], clean(text))) {
+                return i;
+            }
+        }
+        String choices = "";
+        for (int i = 0; i < CATEGORIES.length; i++) {
+            if (i > 0) {
+                choices = choices + ", ";
+            }
+            choices = choices + CATEGORIES[i];
+        }
+        throw new IllegalArgumentException("Unknown category '" + text + "'. Choose from: " + choices);
+    }
+
+    static int parseYear(String text) {
+        int year;
+        try {
+            year = Integer.parseInt(text);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Year must be a whole number.");
+        }
+        int latest = yearOf(today);
+        if (year < MIN_YEAR || year > latest) {
+            throw new IllegalArgumentException("Year must be between " + MIN_YEAR + " and " + latest + ".");
+        }
+        return year;
+    }
+
+    // CREATE a book. Staff only.
+    static void addBook(String actor, String title, String category, String genre, String yearText)
+            throws IOException {
+        requireStaff(actor);
+        checkText(title, "Title");
+        String cat = CATEGORIES[categoryIndex(category)];
+        checkText(genre, "Genre");
+        int year = parseYear(yearText);
+        if (bookCount >= MAX_BOOKS) {
+            throw new IllegalArgumentException("The book list is full.");
+        }
+        int id = nextBookId();
+        bookId[bookCount] = id;
+        bookTitle[bookCount] = title;
+        bookCategory[bookCount] = cat;
+        bookGenre[bookCount] = genre;
+        bookYear[bookCount] = year;
+        bookOnLoan[bookCount] = false;
+        bookCount++;
+        saveBooks();
+        audit("CREATE_BOOK #" + id + " " + title + " by " + actor);
+        System.out.println("Created book #" + id + " '" + title + "'.");
+    }
+
+    // GET a book by ID.
+    static void viewBook(int id) {
+        int i = findBook(id);
+        if (i < 0) {
+            throw new IllegalArgumentException("No book with ID " + id + ".");
+        }
+        System.out.println("ID       : " + bookId[i]);
+        System.out.println("Title    : " + bookTitle[i]);
+        System.out.println("Category : " + bookCategory[i]);
+        System.out.println("Genre    : " + bookGenre[i]);
+        System.out.println("Year     : " + bookYear[i]);
+        System.out.println("Status   : " + (bookOnLoan[i] ? "On loan" : "Available"));
+    }
+
+    //UPDATE a book. Null arguments keep the current value. Staff only.
+    static void updateBook(String actor, int id, String title, String category, String genre, String yearText)
+            throws IOException {
+        requireStaff(actor);
+        int i = findBook(id);
+        if (i < 0) {
+            throw new IllegalArgumentException("No book with ID " + id + ".");
+        }
+        String newTitle = bookTitle[i];
+        if (title != null) {
+            checkText(title, "Title");
+            newTitle = title;
+        }
+        String newCategory = bookCategory[i];
+        if (category != null) {
+            newCategory = CATEGORIES[categoryIndex(category)];
+        }
+        String newGenre = bookGenre[i];
+        if (genre != null) {
+            checkText(genre, "Genre");
+            newGenre = genre;
+        }
+        int newYear = bookYear[i];
+        if (yearText != null) {
+            newYear = parseYear(yearText);
+        }
+        bookTitle[i] = newTitle;
+        bookCategory[i] = newCategory;
+        bookGenre[i] = newGenre;
+        bookYear[i] = newYear;
+        saveBooks();
+        audit("UPDATE_BOOK #" + id + " by " + actor);
+        System.out.println("Book #" + id + " updated.");
+    }
+
+    // DELETE a book. Staff only. Not allowed while it is on loan.
+    static void deleteBook(String actor, int id) throws IOException {
+        requireStaff(actor);
+        int i = findBook(id);
+        if (i < 0) {
+            throw new IllegalArgumentException("No book with ID " + id + ".");
+        }
+        if (bookOnLoan[i]) {
+            throw new IllegalArgumentException("'" + bookTitle[i] + "' is on loan and cannot be deleted.");
+        }
+        for (int j = i; j < bookCount - 1; j++) {   // close the gap
+            bookId[j] = bookId[j + 1];
+            bookTitle[j] = bookTitle[j + 1];
+            bookCategory[j] = bookCategory[j + 1];
+            bookGenre[j] = bookGenre[j + 1];
+            bookYear[j] = bookYear[j + 1];
+            bookOnLoan[j] = bookOnLoan[j + 1];
+        }
+        bookCount--;
+        saveBooks();
+        audit("DELETE_BOOK #" + id + " by " + actor);
+        System.out.println("Book #" + id + " deleted.");
+    }
+
+    static void printBookHeader() {
+        System.out.println(pad("ID", 5) + " " + pad("Title", 30) + " " + pad("Category", 14) + " "
+                + pad("Genre", 18) + " " + pad("Year", 6) + " Status");
+        System.out.println(dashes(88));
+    }
+
+    static void printBookRow(int i) {
+        System.out.println(pad("" + bookId[i], 5) + " " + pad(cut(bookTitle[i], 30), 30) + " "
+                + pad(bookCategory[i], 14) + " " + pad(cut(bookGenre[i], 18), 18) + " "
+                + pad("" + bookYear[i], 6) + " " + (bookOnLoan[i] ? "On loan" : "Available"));
+    }
+
+    /*
+     * SEARCH. A blank keyword lists all books. The keyword is matched against title,
+     * genre, category and year, ignoring case. Returns how many books were printed.
+     */
+
+    static int listBooks(String keyword, boolean availableOnly) {
+        String k = clean(keyword).toLowerCase();
+        int shown = 0;
+        printBookHeader();
+        for (int i = 0; i < bookCount; i++) {
+            if (availableOnly && bookOnLoan[i]) {
+                continue;
+            }
+            boolean match = k.length() == 0
+                    || bookTitle[i].toLowerCase().contains(k)
+                    || bookGenre[i].toLowerCase().contains(k)
+                    || bookCategory[i].toLowerCase().contains(k)
+                    || ("" + bookYear[i]).contains(k);
+            if (match) {
+                printBookRow(i);
+                shown++;
+            }
+        }
+        if (shown == 0) {
+            System.out.println("  (no books found)");
+        }
+        return shown;
+    }
