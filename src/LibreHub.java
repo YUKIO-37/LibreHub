@@ -1459,3 +1459,362 @@ static void borrow(String actor, String borrower, int bookNumber) throws IOExcep
         audit("SET_DATE " + fromDayNumber(today) + " by " + actor);
         System.out.println("Library date is now " + fromDayNumber(today) + ".");
     }
+    /* 14. MENUS
+    Landing dashboard with the two options: Register and Login.
+    */
+
+    static void landingDashboard() {
+        System.out.println();
+        System.out.println("==================== LibreHub ====================");
+        System.out.println("  1. Register  - Create an account");
+        System.out.println("  2. Login");
+        System.out.println("  0. Exit");
+        System.out.println("==================================================");
+        try {
+            String choice = ask("Choose");
+            if (choice.equals("1")) {
+                registerScreen();
+            } else if (choice.equals("2")) {
+                login();
+            } else if (choice.equals("0")) {
+                running = false;
+                System.out.println("Thank you for using LibreHub, See you next time!");
+            } else {
+                System.out.println("Invalid option.");
+            }
+        } catch (IllegalArgumentException e) {
+            System.out.println("Error: " + e.getMessage());
+        } catch (IOException e) {
+            System.out.println("File error: " + e.getMessage());
+        }
+    }
+
+    static void registerScreen() throws IOException {
+        System.out.println("=== Register (member account) ===");
+        String username = ask("Username");
+        String fullName = ask("Full name");
+        String password = ask("Password (min " + MIN_PASSWORD + " characters)");
+        createUser(null, username, fullName, password, MEMBER);
+    }
+
+    static void memberMenu() {
+        System.out.println();
+        System.out.println("=== Member: " + sessionUser + " ===");
+        System.out.println("  1. Search books");
+        System.out.println("  2. Edit my account");
+        System.out.println("  3. Borrow a book");
+        System.out.println("  4. Return a book");
+        System.out.println("  5. My loans");
+        System.out.println("  0. Logout");
+        try {
+            int choice = askInt("Choose");
+            switch (choice) {
+                case 0:
+                    logout();
+                    break;
+                case 1:
+                    searchScreen();
+                    break;
+                case 2:
+                    editAccountScreen(sessionUser);
+                    break;
+                case 3:
+                    listBooks("", true);
+                    borrow(sessionUser, sessionUser, askInt("Book ID to borrow"));
+                    break;
+                case 4:
+                    openLoansScreen(sessionUser);
+                    break;
+                case 5:
+                    loanTracker(sessionUser);
+                    break;
+                default:
+                    System.out.println("Invalid option.");
+            }
+        } catch (IllegalArgumentException e) {
+            System.out.println("Error: " + e.getMessage());
+        } catch (IOException e) {
+            System.out.println("File error: " + e.getMessage());
+        } finally {
+            pressEnterToContinue();
+        }
+    }
+
+    // Librarian menu: day-to-day library operations only.
+    static void librarianMenu() {
+        System.out.println();
+        System.out.println("=== Librarian: " + sessionUser + " ===");
+        System.out.println("  1. Search books");
+        System.out.println("  2. Add a book");
+        System.out.println("  3. View a book");
+        System.out.println("  4. Update a book");
+        System.out.println("  5. Delete a book");
+        System.out.println("  6. Register a member");
+        System.out.println("  7. View member information");
+        System.out.println("  8. Update member information");
+        System.out.println("  9. Borrow a book for a member");
+        System.out.println(" 10. Return a loan");
+        System.out.println(" 11. Loan tracker");
+        System.out.println(" 12. Overdue report");
+        System.out.println(" 13. Statistics dashboard");
+        System.out.println(" 14. Edit my account");
+        System.out.println("  0. Logout");
+        try {
+            int choice = askInt("Choose");
+            switch (choice) {
+                case 0:
+                    logout();
+                    break;
+                case 1:
+                    searchScreen();
+                    break;
+                case 2:
+                    addBookScreen();
+                    break;
+                case 3:
+                    viewBook(askInt("Book ID"));
+                    break;
+                case 4:
+                    updateBookScreen();
+                    break;
+                case 5:
+                    deleteBookScreen();
+                    break;
+                case 6:
+                    registerMemberScreen();
+                    break;
+                case 7:
+                    viewUser(sessionUser, ask("Member username"));
+                    break;
+                case 8:
+                    editAccountScreen(ask("Member username to update"));
+                    break;
+                case 9:
+                    String borrower = ask("Member username");
+                    listBooks("", true);
+                    borrow(sessionUser, borrower, askInt("Book ID to borrow"));
+                    break;
+                case 10:
+                    openLoansScreen(sessionUser);
+                    break;
+                case 11:
+                    loanTracker(sessionUser);
+                    break;
+                case 12:
+                    overdueReport(sessionUser);
+                    break;
+                case 13:
+                    dashboard(sessionUser);
+                    break;
+                case 14:
+                    editAccountScreen(sessionUser);
+                    break;
+                default:
+                    System.out.println("Invalid option.");
+            }
+        } catch (IllegalArgumentException e) {
+            System.out.println("Error: " + e.getMessage());
+        } catch (IOException e) {
+            System.out.println("File error: " + e.getMessage());
+        } finally {
+            pressEnterToContinue();
+        }
+    }
+
+    // Administrator menu: system oversight and account/security administration.
+    static void adminMenu() {
+        System.out.println();
+        System.out.println("=== Administrator: " + sessionUser + " ===");
+        System.out.println("  1. List all users");
+        System.out.println("  2. Create staff account");
+        System.out.println("  3. Change a user's role");
+        System.out.println("  4. Delete a user account");
+        System.out.println("  5. System settings");
+        System.out.println("  6. View activity logs");
+        System.out.println("  7. System backup and restore");
+        System.out.println("  8. Administrative report");
+        System.out.println("  0. Logout");
+        try {
+            int choice = askInt("Choose");
+            switch (choice) {
+                case 0:
+                    logout();
+                    break;
+                case 1:
+                    listUsers(sessionUser);
+                    break;
+                case 2:
+                    createStaffScreen();
+                    break;
+                case 3:
+                    changeUserRoleScreen();
+                    break;
+                case 4:
+                    deleteUserScreen();
+                    break;
+                case 5:
+                    systemSettingsScreen(sessionUser);
+                    break;
+                case 6:
+                    viewActivityLog(sessionUser);
+                    break;
+                case 7:
+                    backupRestoreScreen(sessionUser);
+                    break;
+                case 8:
+                    administrativeReport(sessionUser);
+                    break;
+                default:
+                    System.out.println("Invalid option.");
+            }
+        } catch (IllegalArgumentException e) {
+            System.out.println("Error: " + e.getMessage());
+        } catch (IOException e) {
+            System.out.println("File error: " + e.getMessage());
+        } finally {
+            pressEnterToContinue();
+        }
+    }
+
+    // screens used by the menus
+
+    static void searchScreen() {
+        String keyword = ask("Search by title, genre, category or year (blank = all)");
+        boolean availableOnly = ask("Only available books? (y/n)").toLowerCase().startsWith("y");
+        int count = listBooks(keyword, availableOnly);
+        System.out.println(count + " book(s) found.");
+    }
+
+    static void openLoansScreen(String actor) throws IOException {
+        printLoanHeader();
+        int shown = 0;
+        for (int k = 0; k < loanCount; k++) {
+            if (loanReturned[k] == -1 && (isStaff(roleOf(actor)) || sameName(loanUser[k], actor))) {
+                printLoanRow(k);
+                shown++;
+            }
+        }
+        if (shown == 0) {
+            System.out.println("Nothing to return.");
+            return;
+        }
+        returnLoan(actor, askInt("Loan ID to return"));
+    }
+
+    static void addBookScreen() throws IOException {
+        String title = ask("Title");
+        System.out.println("Categories: Fiction, Non-Fiction, Academic, Reference, Periodical");
+        String category = ask("Category");
+        String genre = ask("Genre (e.g. Science Fiction)");
+        String year = ask("Year of publication");
+        addBook(sessionUser, title, category, genre, year);
+    }
+
+    static void updateBookScreen() throws IOException {
+        int id = askInt("Book ID to update");
+        int i = findBook(id);
+        if (i < 0) {
+            throw new IllegalArgumentException("No book with ID " + id + ".");
+        }
+        System.out.println("Editing book #" + id + ". Leave a field blank to keep its value.");
+        String title = orNull(ask("Title [" + bookTitle[i] + "]"));
+        System.out.println("Categories: Fiction, Non-Fiction, Academic, Reference, Periodical");
+        String category = orNull(ask("Category [" + bookCategory[i] + "]"));
+        String genre = orNull(ask("Genre [" + bookGenre[i] + "]"));
+        String year = orNull(ask("Year [" + bookYear[i] + "]"));
+        updateBook(sessionUser, id, title, category, genre, year);
+    }
+
+    static void deleteBookScreen() throws IOException {
+        int id = askInt("Book ID to delete");
+        int i = findBook(id);
+        if (i < 0) {
+            throw new IllegalArgumentException("No book with ID " + id + ".");
+        }
+        if (!"YES".equals(ask("Type YES to delete '" + bookTitle[i] + "'"))) {
+            System.out.println("Cancelled.");
+            return;
+        }
+        deleteBook(sessionUser, id);
+    }
+
+    static void registerMemberScreen() throws IOException {
+        String username = ask("Username");
+        String fullName = ask("Full name");
+        String password = ask("Temporary password (min " + MIN_PASSWORD + " characters)");
+        createUser(sessionUser, username, fullName, password, MEMBER);
+    }
+
+    static void createStaffScreen() throws IOException {
+        String username = ask("Username");
+        String fullName = ask("Full name");
+        String password = ask("Temporary password (min " + MIN_PASSWORD + " characters)");
+        String role = staffRoleChoice(ask("Role: 1 Librarian, 2 Administrator"));
+        createUser(sessionUser, username, fullName, password, role);
+    }
+
+    static String staffRoleChoice(String text) {
+        String choice = clean(text);
+        if (choice.equals("1")) {
+            return LIBRARIAN;
+        } else if (choice.equals("2")) {
+            return ADMIN;
+        }
+        throw new IllegalArgumentException("Role must be 1 or 2.");
+    }
+
+    static void changeUserRoleScreen() throws IOException {
+        String username = ask("Username whose role will change");
+        int i = findUser(username);
+        if (i < 0) {
+            throw new IllegalArgumentException("No user named '" + username + "'.");
+        }
+        System.out.println("Current role: " + roleLabel(userRole[i]));
+        String role = roleChoice(ask("New role: 1 Member, 2 Librarian, 3 Administrator"));
+        changeUserRole(sessionUser, username, role);
+    }
+
+    static void deleteUserScreen() throws IOException {
+        String username = ask("Username to delete");
+        if (!"YES".equals(ask("Type YES to delete '" + username + "'"))) {
+            System.out.println("Cancelled.");
+            return;
+        }
+        deleteUser(sessionUser, username);
+    }
+
+    // Shared account-edit screen for "Edit my account" and staff "Update a user".
+    static void editAccountScreen(String target) throws IOException {
+        int i = findUser(target);
+        if (i < 0) {
+            throw new IllegalArgumentException("No user named '" + target + "'.");
+        }
+        boolean self = sameName(userName[i], sessionUser);
+        System.out.println("Editing '" + userName[i] + "'. Leave a field blank to keep its value.");
+        String name = orNull(ask("Full name [" + userFullName[i] + "]"));
+        String password = orNull(ask("New password (blank = no change)"));
+        String currentPassword = null;
+        if (password != null && self) {
+            currentPassword = ask("Your current password");
+        }
+        String role = null;
+        if (ADMIN.equals(roleOf(sessionUser)) && !self) {
+            String choice = orNull(ask("Role: 1 Member, 2 Librarian, 3 Administrator (blank = no change)"));
+            if (choice != null) {
+                role = roleChoice(choice);
+            }
+        }
+        updateUser(sessionUser, userName[i], name, password, currentPassword, role);
+    }
+
+    static String roleChoice(String text) {
+        String choice = clean(text);
+        if (choice.equals("1")) {
+            return MEMBER;
+        } else if (choice.equals("2")) {
+            return LIBRARIAN;
+        } else if (choice.equals("3")) {
+            return ADMIN;
+        }
+        throw new IllegalArgumentException("Role must be 1, 2 or 3.");
+    }
