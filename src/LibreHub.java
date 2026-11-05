@@ -302,3 +302,89 @@ public class LibreHub {
     static boolean isOverdue(int k) {
         return loanReturned[k] == -1 && overdueDays(k) > 0;
     }
+// 5. LOOKUPS
+
+    static int findUser(String name) {
+        for (int i = 0; i < userCount; i++) {
+            if (sameName(userName[i], name)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    static int findBook(int id) {
+        for (int i = 0; i < bookCount; i++) {
+            if (bookId[i] == id) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    static int findLoan(int id) {
+        for (int k = 0; k < loanCount; k++) {
+            if (loanId[k] == id) {
+                return k;
+            }
+        }
+        return -1;
+    }
+
+    static String roleOf(String username) {
+        int i = findUser(username);
+        if (i < 0) {
+            return "";
+        }
+        return userRole[i];
+    }
+
+    static boolean isStaff(String role) {
+        return ADMIN.equals(role) || LIBRARIAN.equals(role);
+    }
+
+    static String roleLabel(String role) {
+        if (ADMIN.equals(role)) {
+            return "Administrator";
+        } else if (LIBRARIAN.equals(role)) {
+            return "Staff";
+        }
+        return "Member";
+    }
+
+    static void requireStaff(String actor) {
+        if (!isStaff(roleOf(actor))) {
+            throw new IllegalArgumentException("This action is restricted to library staff.");
+        }
+    }
+
+    static void requireAdmin(String actor) {
+        if (!ADMIN.equals(roleOf(actor))) {
+            throw new IllegalArgumentException("This action is restricted to administrators.");
+        }
+    }
+
+    static int nextBookId() {
+        int max = 0;
+        for (int i = 0; i < bookCount; i++) {
+            if (bookId[i] > max) {
+                max = bookId[i];
+            }
+        }
+        for (int k = 0; k < loanCount; k++) {   // loans keep old book IDs out of reuse
+            if (loanBookId[k] > max) {
+                max = loanBookId[k];
+            }
+        }
+        return max + 1;
+    }
+
+    static int nextLoanId() {
+        int max = 0;
+        for (int k = 0; k < loanCount; k++) {
+            if (loanId[k] > max) {
+                max = loanId[k];
+            }
+        }
+        return max + 1;
+    }
