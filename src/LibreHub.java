@@ -110,7 +110,9 @@ public class LibreHub {
         }
         return text;
     }
-// 3. TEXT HELPERS AND CHECKS
+
+    // 3. TEXT HELPERS AND CHECKS
+
     // Removes spaces from both ends, using charAt (String.trim is not in the slides).
     static String clean(String text) {
         int start = 0;
@@ -199,7 +201,7 @@ public class LibreHub {
         for (int i = 0; i < name.length(); i++) {
             char c = name.charAt(i);
             boolean allowed = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
-        || (c >= '0' && c <= '9') || c == '.' || c == '_';
+                    || (c >= '0' && c <= '9') || c == '.' || c == '_';
             if (!allowed) {
                 throw new IllegalArgumentException("Username may only use letters, digits, '.' and '_'.");
             }
@@ -211,7 +213,8 @@ public class LibreHub {
             throw new IllegalArgumentException("Password must be at least " + MIN_PASSWORD + " characters.");
         }
     }
-// 4. DATE HELPERS
+
+    // 4. DATE HELPERS
     static int toDayNumber(int year, int month, int day) {
         int a = (14 - month) / 12;
         int y = year + 4800 - a;
@@ -302,7 +305,8 @@ public class LibreHub {
     static boolean isOverdue(int k) {
         return loanReturned[k] == -1 && overdueDays(k) > 0;
     }
-// 5. LOOKUPS
+
+    // 5. LOOKUPS
 
     static int findUser(String name) {
         for (int i = 0; i < userCount; i++) {
@@ -860,7 +864,8 @@ public class LibreHub {
             System.out.println("Invalid option.");
         }
     }
- // 8. LOGIN AND LOGOUT
+
+    // 8. LOGIN AND LOGOUT
 
     static void login() throws IOException {
         String name = ask("Username");
@@ -1050,7 +1055,7 @@ public class LibreHub {
         System.out.println("Role for '" + userName[i] + "' changed to " + roleLabel(newRole) + ".");
     }
 
-   // 10. BOOK CRUD AND SEARCH
+    // 10. BOOK CRUD AND SEARCH
 
     static int categoryIndex(String text) {
         for (int i = 0; i < CATEGORIES.length; i++) {
@@ -1219,53 +1224,66 @@ public class LibreHub {
         }
         return shown;
     }
-// 11. BORROWING AND RETURNING
+
+    // 11. BORROWING AND RETURNING
 
     /*
-     
-Borrow rules:
-members may only borrow for themselves; staff may borrow for any member
-the book must exist and be on the shelf
-the borrower may not have overdue books
-the borrower may hold at most MAX_ACTIVE_LOANS books
-*/
-static void borrow(String actor, String borrower, int bookNumber) throws IOException {
-   int u = findUser(borrower);
-   if (u < 0) {
-       throw new IllegalArgumentException("No user named '" + borrower + "'.");}
-   if (MEMBER.equals(roleOf(actor)) && !sameName(userName[u], actor)) {
-       throw new IllegalArgumentException("Members can only borrow books for themselves.");}
-   int b = findBook(bookNumber);
-   if (b < 0) {
-       throw new IllegalArgumentException("No book with ID " + bookNumber + ".");}
-   if (bookOnLoan[b]) {
-       throw new IllegalArgumentException("'" + bookTitle[b] + "' is already on loan.");}
-   int open = 0;
-   boolean overdue = false;
-   for (int k = 0; k < loanCount; k++) {
-       if (loanReturned[k] == -1 && sameName(loanUser[k], userName[u])) {
-           open++;
-           if (isOverdue(k)) {
-               overdue = true;}}}
-   if (overdue) {
-       throw new IllegalArgumentException(userFullName[u] + " has overdue books and must return them first.");}
-   if (open >= MAX_ACTIVE_LOANS) {
-       throw new IllegalArgumentException(userFullName[u] + " already has the maximum of "+ MAX_ACTIVE_LOANS + " active loans.");}
-   if (loanCount >= MAX_LOANS) {
-       throw new IllegalArgumentException("The loan list is full.");}
-   int id = nextLoanId();
-   loanId[loanCount] = id;
-   loanBookId[loanCount] = bookNumber;
-   loanUser[loanCount] = userName[u];
-   loanBorrowed[loanCount] = today;
-   loanDue[loanCount] = today + LOAN_DAYS;
-   loanReturned[loanCount] = -1;
-   loanCount++;
-   bookOnLoan[b] = true;
-   saveBooks();
-   saveLoans();
-   audit("BORROW loan #" + id + " book #" + bookNumber + " by " + userName[u]);
-   System.out.println("Loan #" + id + " created. Due " + fromDayNumber(today + LOAN_DAYS)+ " (" + LOAN_DAYS + " days).");}
+     * Borrow rules:
+     *  - members may only borrow for themselves; staff may borrow for any member
+     *  - the book must exist and be on the shelf
+     *  - the borrower may not have overdue books
+     *  - the borrower may hold at most MAX_ACTIVE_LOANS books
+     */
+    static void borrow(String actor, String borrower, int bookNumber) throws IOException {
+        int u = findUser(borrower);
+        if (u < 0) {
+            throw new IllegalArgumentException("No user named '" + borrower + "'.");
+        }
+        if (MEMBER.equals(roleOf(actor)) && !sameName(userName[u], actor)) {
+            throw new IllegalArgumentException("Members can only borrow books for themselves.");
+        }
+        int b = findBook(bookNumber);
+        if (b < 0) {
+            throw new IllegalArgumentException("No book with ID " + bookNumber + ".");
+        }
+        if (bookOnLoan[b]) {
+            throw new IllegalArgumentException("'" + bookTitle[b] + "' is already on loan.");
+        }
+        int open = 0;
+        boolean overdue = false;
+        for (int k = 0; k < loanCount; k++) {
+            if (loanReturned[k] == -1 && sameName(loanUser[k], userName[u])) {
+                open++;
+                if (isOverdue(k)) {
+                    overdue = true;
+                }
+            }
+        }
+        if (overdue) {
+            throw new IllegalArgumentException(userFullName[u] + " has overdue books and must return them first.");
+        }
+        if (open >= MAX_ACTIVE_LOANS) {
+            throw new IllegalArgumentException(userFullName[u] + " already has the maximum of "
+                    + MAX_ACTIVE_LOANS + " active loans.");
+        }
+        if (loanCount >= MAX_LOANS) {
+            throw new IllegalArgumentException("The loan list is full.");
+        }
+        int id = nextLoanId();
+        loanId[loanCount] = id;
+        loanBookId[loanCount] = bookNumber;
+        loanUser[loanCount] = userName[u];
+        loanBorrowed[loanCount] = today;
+        loanDue[loanCount] = today + LOAN_DAYS;
+        loanReturned[loanCount] = -1;
+        loanCount++;
+        bookOnLoan[b] = true;
+        saveBooks();
+        saveLoans();
+        audit("BORROW loan #" + id + " book #" + bookNumber + " by " + userName[u]);
+        System.out.println("Loan #" + id + " created. Due " + fromDayNumber(today + LOAN_DAYS)
+                + " (" + LOAN_DAYS + " days).");
+    }
 
     static void returnLoan(String actor, int id) throws IOException {
         int k = findLoan(id);
@@ -1293,7 +1311,8 @@ static void borrow(String actor, String borrower, int bookNumber) throws IOExcep
             System.out.println("Returned on time.");
         }
     }
-// 12. LOAN TRACKER AND OVERDUE REPORT
+
+    // 12. LOAN TRACKER AND OVERDUE REPORT
 
     static String titleOfBook(int bookNumber) {
         int b = findBook(bookNumber);
@@ -1353,7 +1372,8 @@ static void borrow(String actor, String borrower, int bookNumber) throws IOExcep
             System.out.println("  No overdue loans.");
         }
     }
- // 13. STATISTICS DASHBOARD
+
+    // 13. STATISTICS DASHBOARD
 
     static String bar(int value, int largest) {
         if (largest == 0) {
@@ -1459,6 +1479,7 @@ static void borrow(String actor, String borrower, int bookNumber) throws IOExcep
         audit("SET_DATE " + fromDayNumber(today) + " by " + actor);
         System.out.println("Library date is now " + fromDayNumber(today) + ".");
     }
+
     /* 14. MENUS
     Landing dashboard with the two options: Register and Login.
     */
@@ -1818,3 +1839,76 @@ static void borrow(String actor, String borrower, int bookNumber) throws IOExcep
         }
         throw new IllegalArgumentException("Role must be 1, 2 or 3.");
     }
+
+    // 15. PROGRAM START AND FIRST-RUN SEED DATA
+
+    static void addSampleBook(String title, String category, String genre, int year) {
+        bookId[bookCount] = nextBookId();
+        bookTitle[bookCount] = title;
+        bookCategory[bookCount] = category;
+        bookGenre[bookCount] = genre;
+        bookYear[bookCount] = year;
+        bookOnLoan[bookCount] = false;
+        bookCount++;
+    }
+
+    // First run only: two default accounts and sample books.
+    static void seed() throws IOException {
+        userName[0] = "admin";
+        userFullName[0] = "System Administrator";
+        userPassword[0] = "admin123";
+        userRole[0] = ADMIN;
+        userName[1] = "librarian";
+        userFullName[1] = "Head Librarian";
+        userPassword[1] = "librarian1";
+        userRole[1] = LIBRARIAN;
+        userCount = 2;
+        addSampleBook("Noli Me Tangere", "Fiction", "Historical Fiction", 1887);
+        addSampleBook("Dune", "Fiction", "Science Fiction", 1965);
+        addSampleBook("Sapiens", "Non-Fiction", "History", 2011);
+        addSampleBook("Clean Code", "Academic", "Software Engineering", 2008);
+        addSampleBook("Merriam-Webster Dictionary", "Reference", "Dictionary", 2003);
+        saveAll();
+        System.out.println("First run: sample data created.");
+        System.out.println("Default accounts: admin / admin123 and librarian / librarian1. Change these passwords.");
+    }
+
+    public static void main(String[] args) {
+        if (args.length > 0) {
+            dataFolder = args[0];
+        }
+        try {
+            loadAll();
+            if (userCount == 0) {
+                seed();
+            }
+            // The library needs a current date. Ask for it until the answer is valid.
+            boolean dateSet = today != 0;
+            while (!dateSet && running) {
+                try {
+                    today = parseDate(ask("Enter today's date (YYYY-MM-DD)"));
+                    saveSettings();
+                    dateSet = true;
+                } catch (IllegalArgumentException e) {
+                    System.out.println("Error: " + e.getMessage());
+                }
+            }
+        } catch (IOException e) {
+            System.out.println("Startup failed: " + e.getMessage());
+            return;
+        }
+
+        System.out.println("Welcome to LibreHub. Library date: " + fromDayNumber(today) + ".");
+        while (running) {
+            if (sessionUser == null) {
+                landingDashboard();
+            } else if (ADMIN.equals(roleOf(sessionUser))) {
+                adminMenu();
+            } else if (LIBRARIAN.equals(roleOf(sessionUser))) {
+                librarianMenu();
+            } else {
+                memberMenu();
+            }
+        }
+    }
+}
