@@ -1353,3 +1353,109 @@ static void borrow(String actor, String borrower, int bookNumber) throws IOExcep
             System.out.println("  No overdue loans.");
         }
     }
+ // 13. STATISTICS DASHBOARD
+
+    static String bar(int value, int largest) {
+        if (largest == 0) {
+            return "";
+        }
+        int length = (value * 20 + largest / 2) / largest;
+        String result = "";
+        for (int i = 0; i < length; i++) {
+            result = result + "#";
+        }
+        return result;
+    }
+
+    static void dashboard(String actor) {
+        requireStaff(actor);
+        int onLoan = 0;
+        for (int i = 0; i < bookCount; i++) {
+            if (bookOnLoan[i]) {
+                onLoan++;
+            }
+        }
+        int openLoans = 0;
+        int overdue = 0;
+        int dueSoon = 0;
+        for (int k = 0; k < loanCount; k++) {
+            if (loanReturned[k] == -1) {
+                openLoans++;
+                if (isOverdue(k)) {
+                    overdue++;
+                } else if (loanDue[k] <= today + DUE_SOON_DAYS) {
+                    dueSoon++;
+                }
+            }
+        }
+
+        System.out.println("==================== Statistics Dashboard ====================");
+        System.out.println("Date: " + fromDayNumber(today));
+        System.out.println();
+        System.out.println("[Collection]");
+        System.out.println("  Total titles : " + bookCount);
+        System.out.println("  Available    : " + (bookCount - onLoan));
+        System.out.println("  On loan      : " + onLoan);
+        System.out.println();
+        System.out.println("[Circulation]");
+        System.out.println("  Open loans   : " + openLoans);
+        System.out.println("  Overdue      : " + overdue);
+        System.out.println("  Due in " + DUE_SOON_DAYS + " day(s): " + dueSoon);
+        System.out.println();
+        System.out.println("[Books by category]");
+        int largest = 0;
+        int[] counts = new int[CATEGORIES.length];
+        for (int c = 0; c < CATEGORIES.length; c++) {
+            for (int i = 0; i < bookCount; i++) {
+                if (bookCategory[i].equals(CATEGORIES[c])) {
+                    counts[c]++;
+                }
+            }
+            if (counts[c] > largest) {
+                largest = counts[c];
+            }
+        }
+        for (int c = 0; c < CATEGORIES.length; c++) {
+            System.out.println("  " + pad(CATEGORIES[c], 12) + " " + pad("" + counts[c], 3) + " " + bar(counts[c], largest));
+        }
+        System.out.println();
+        System.out.println("[Users]");
+        String[] roles = {ADMIN, LIBRARIAN, MEMBER};
+        for (int r = 0; r < roles.length; r++) {
+            int n = 0;
+            for (int i = 0; i < userCount; i++) {
+                if (userRole[i].equals(roles[r])) {
+                    n++;
+                }
+            }
+            System.out.println("  " + pad(roleLabel(roles[r]), 14) + " " + n);
+        }
+        System.out.println();
+        System.out.println("[Overdue loans]");
+        if (overdue == 0) {
+            System.out.println("  None.");
+        } else {
+            for (int k = 0; k < loanCount; k++) {
+                if (isOverdue(k)) {
+                    System.out.println("  #" + loanId[k] + " " + titleOfBook(loanBookId[k]) + " - "
+                            + overdueDays(k) + " day(s) overdue (" + loanUser[k] + ")");
+                }
+            }
+        }
+        System.out.println("==============================================================");
+    }
+
+    /** Administrators can move the library's date forward (or back, before any loan). */
+    static void setDate(String actor, String text) throws IOException {
+        requireAdmin(actor);
+        int newDate = parseDate(text);
+        for (int k = 0; k < loanCount; k++) {
+            if (newDate < loanBorrowed[k]) {
+                throw new IllegalArgumentException("The date cannot be before loan #" + loanId[k] + " was borrowed.");
+            }
+        }
+        today = newDate;
+        saveSettings();
+        audit("SET_DATE " + fromDayNumber(today) + " by " + actor);
+        System.out.println("Library date is now " + fromDayNumber(today) + ".");
+    }
