@@ -1293,3 +1293,63 @@ static void borrow(String actor, String borrower, int bookNumber) throws IOExcep
             System.out.println("Returned on time.");
         }
     }
+// 12. LOAN TRACKER AND OVERDUE REPORT
+
+    static String titleOfBook(int bookNumber) {
+        int b = findBook(bookNumber);
+        if (b < 0) {
+            return "(deleted book)";
+        }
+        return bookTitle[b];
+    }
+
+    static void printLoanHeader() {
+        System.out.println(pad("Loan", 5) + " " + pad("Book", 28) + " " + pad("Borrower", 12) + " "
+                + pad("Borrowed", 10) + " " + pad("Due", 10) + " " + pad("Returned", 10) + " "
+                + pad("Days out", 9) + " Overdue");
+        System.out.println(dashes(100));
+    }
+
+    static void printLoanRow(int k) {
+        String returned = "-";
+        if (loanReturned[k] != -1) {
+            returned = fromDayNumber(loanReturned[k]);
+        }
+        System.out.println(pad("" + loanId[k], 5) + " " + pad(cut(titleOfBook(loanBookId[k]), 28), 28) + " "
+                + pad(cut(loanUser[k], 12), 12) + " " + pad(fromDayNumber(loanBorrowed[k]), 10) + " "
+                + pad(fromDayNumber(loanDue[k]), 10) + " " + pad(returned, 10) + " "
+                + pad("" + daysOut(k), 9) + " " + overdueDays(k));
+    }
+
+    // Loan tracker. Staff see every loan; members see their own.
+
+    static void loanTracker(String actor) {
+        boolean staff = isStaff(roleOf(actor));
+        int shown = 0;
+        printLoanHeader();
+        for (int k = 0; k < loanCount; k++) {
+            if (staff || sameName(loanUser[k], actor)) {
+                printLoanRow(k);
+                shown++;
+            }
+        }
+        if (shown == 0) {
+            System.out.println("  (no loans found)");
+        }
+    }
+    // Open loans past their due date. Staff only.
+
+    static void overdueReport(String actor) {
+        requireStaff(actor);
+        int shown = 0;
+        printLoanHeader();
+        for (int k = 0; k < loanCount; k++) {
+            if (isOverdue(k)) {
+                printLoanRow(k);
+                shown++;
+            }
+        }
+        if (shown == 0) {
+            System.out.println("  No overdue loans.");
+        }
+    }
