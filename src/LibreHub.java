@@ -388,3 +388,186 @@ public class LibreHub {
         }
         return max + 1;
     }
+
+    // 6. FILE STORAGE (load and save)
+
+    static File fileNamed(String name) {
+        return new File(dataFolder + "/" + name);
+    }
+
+    static String backupsPath() {
+        return dataFolder + "/backups";
+    }
+
+    static void loadAll() throws IOException {
+        File folder = new File(dataFolder);
+        if (!folder.exists()) {
+            folder.mkdir();
+        }
+        loadSettings();
+        loadUsers();
+        loadBooks();
+        loadLoans();
+    }
+
+    static void loadSettings() throws IOException {
+        File file = fileNamed(SETTINGS_FILE);
+        if (!file.exists()) {
+            return;
+        }
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            String line = reader.readLine();
+            if (line != null && !isBlank(line)) {
+                today = Integer.parseInt(clean(line));
+            }
+            // Older settings files contain only the date. Missing values keep their defaults.
+            LOAN_DAYS = readOptionalSetting(reader, LOAN_DAYS, 1, 365, "loan period");
+            MAX_ACTIVE_LOANS = readOptionalSetting(reader, MAX_ACTIVE_LOANS, 1, 20, "maximum active loans");
+            DUE_SOON_DAYS = readOptionalSetting(reader, DUE_SOON_DAYS, 0, 60, "due-soon window");
+            MIN_PASSWORD = readOptionalSetting(reader, MIN_PASSWORD, 4, 32, "minimum password length");
+        } catch (NumberFormatException e) {
+            throw new IOException("corrupt " + SETTINGS_FILE);
+        }
+    }
+
+    static int readOptionalSetting(BufferedReader reader, int current, int minimum, int maximum, String name)
+            throws IOException {
+        String line = reader.readLine();
+        if (line == null || isBlank(line)) {
+            return current;
+        }
+        int value;
+        try {
+            value = Integer.parseInt(clean(line));
+        } catch (NumberFormatException e) {
+            throw new IOException("corrupt " + name + " in " + SETTINGS_FILE);
+        }
+        if (value < minimum || value > maximum) {
+            throw new IOException("invalid " + name + " in " + SETTINGS_FILE);
+        }
+        return value;
+    }
+
+    static void loadUsers() throws IOException {
+        File file = fileNamed(USERS_FILE);
+        if (!file.exists()) {
+            return;
+        }
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (isBlank(line)) {
+                    continue;
+                }
+                String[] f = line.split(";");
+                if (f.length != 4) {
+                    throw new IOException("corrupt record in " + USERS_FILE + ": " + line);
+                }
+                userName[userCount] = f[0];
+                userFullName[userCount] = f[1];
+                userPassword[userCount] = f[2];
+                userRole[userCount] = f[3];
+                userCount++;
+            }
+        }
+    }
+
+    static void loadBooks() throws IOException {
+        File file = fileNamed(BOOKS_FILE);
+        if (!file.exists()) {
+            return;
+        }
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (isBlank(line)) {
+                    continue;
+                }
+                String[] f = line.split(";");
+                if (f.length != 6) {
+                    throw new IOException("corrupt record in " + BOOKS_FILE + ": " + line);
+                }
+                bookId[bookCount] = Integer.parseInt(f[0]);
+                bookTitle[bookCount] = f[1];
+                bookCategory[bookCount] = f[2];
+                bookGenre[bookCount] = f[3];
+                bookYear[bookCount] = Integer.parseInt(f[4]);
+                bookOnLoan[bookCount] = f[5].equals("1");
+                bookCount++;
+            }
+        } catch (NumberFormatException e) {
+            throw new IOException("corrupt number in " + BOOKS_FILE);
+        }
+    }
+
+    static void loadLoans() throws IOException {
+        File file = fileNamed(LOANS_FILE);
+        if (!file.exists()) {
+            return;
+        }
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (isBlank(line)) {
+                    continue;
+                }
+                String[] f = line.split(";");
+                if (f.length != 6) {
+                    throw new IOException("corrupt record in " + LOANS_FILE + ": " + line);
+                }
+                loanId[loanCount] = Integer.parseInt(f[0]);
+                loanBookId[loanCount] = Integer.parseInt(f[1]);
+                loanUser[loanCount] = f[2];
+                loanBorrowed[loanCount] = Integer.parseInt(f[3]);
+                loanDue[loanCount] = Integer.parseInt(f[4]);
+                loanReturned[loanCount] = Integer.parseInt(f[5]);
+                loanCount++;
+            }
+        } catch (NumberFormatException e) {
+            throw new IOException("corrupt number in " + LOANS_FILE);
+        }
+    }
+
+    static void saveAll() throws IOException {
+        saveSettings();
+        saveUsers();
+        saveBooks();
+        saveLoans();
+    }
+
+    static void saveSettings() throws IOException {
+        try (FileWriter writer = new FileWriter(fileNamed(SETTINGS_FILE))) {
+            writer.write(today + "\n");
+            writer.write(LOAN_DAYS + "\n");
+            writer.write(MAX_ACTIVE_LOANS + "\n");
+            writer.write(DUE_SOON_DAYS + "\n");
+            writer.write(MIN_PASSWORD + "\n");
+        }
+    }
+
+    static void saveUsers() throws IOException {
+        try (FileWriter writer = new FileWriter(fileNamed(USERS_FILE))) {
+            for (int i = 0; i < userCount; i++) {
+                writer.write(userName[i] + ";" + userFullName[i] + ";" + userPassword[i] + ";" + userRole[i] + "\n");
+            }
+        }
+    }
+
+    static void saveBooks() throws IOException {
+        try (FileWriter writer = new FileWriter(fileNamed(BOOKS_FILE))) {
+            for (int i = 0; i < bookCount; i++) {
+                int onLoan = bookOnLoan[i] ? 1 : 0;
+                writer.write(bookId[i] + ";" + bookTitle[i] + ";" + bookCategory[i] + ";"
+                        + bookGenre[i] + ";" + bookYear[i] + ";" + onLoan + "\n");
+            }
+        }
+    }
+
+    static void saveLoans() throws IOException {
+        try (FileWriter writer = new FileWriter(fileNamed(LOANS_FILE))) {
+            for (int k = 0; k < loanCount; k++) {
+                writer.write(loanId[k] + ";" + loanBookId[k] + ";" + loanUser[k] + ";"
+                        + loanBorrowed[k] + ";" + loanDue[k] + ";" + loanReturned[k] + "\n");
+            }
+        }
+    }
