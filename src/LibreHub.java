@@ -63,3 +63,50 @@ public class LibreHub {
     static int[] loanDue = new int[MAX_LOANS];
     static int[] loanReturned = new int[MAX_LOANS];
 
+    // 2. INPUT HELPERS
+
+    // Reads one whole line. When input ends, stops the program loops and returns "0".
+    static String ask(String prompt) {
+        System.out.print(prompt + ": ");
+        if (!input.hasNextLine()) {
+            running = false;
+            return "0";
+        }
+        return clean(input.nextLine());
+    }
+
+    static int askInt(String prompt) {
+        String text = ask(prompt);
+        try {
+            return Integer.parseInt(text);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("'" + text + "' is not a whole number.");
+        }
+    }
+
+    // Pauses after a menu action until the user submits a blank line.
+    static void pressEnterToContinue() {
+        if (!running) {
+            return;
+        }
+        while (running) {
+            System.out.print("\nPress ENTER to continue...");
+            if (!input.hasNextLine()) {
+                running = false;
+                return;
+            }
+            String response = input.nextLine();
+            if (isBlank(response)) {
+                return;
+            }
+            System.out.println("Please press ENTER without typing anything.");
+        }
+    }
+
+    // Blank input means "keep the current value", so it becomes null.
+    static String orNull(String text) {
+        if (text.length() == 0) {
+            return null;
+        }
+        return text;
+    }
