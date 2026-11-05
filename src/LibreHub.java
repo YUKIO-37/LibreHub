@@ -135,7 +135,7 @@ public class LibreHub {
     // True if the text contains a slash or a backslash (checked with charAt, not indexOf).
     static boolean hasSeparator(String text) {
         for (int i = 0; i < text.length(); i++) {
-            if (text.charAt(i) == '/'  text.charAt(i) == '\') {
+            if (text.charAt(i) == '/' || text.charAt(i) == '\\') {
                 return true;
             }
         }
@@ -184,7 +184,7 @@ public class LibreHub {
     // Text must not be empty and must not contain ';', which separates fields in the files.
 
     static void checkText(String value, String field) {
-        if (value == null  value.length() == 0) {
+        if (value == null || value.length() == 0) {
             throw new IllegalArgumentException(field + " cannot be empty.");
         }
         if (value.contains(";")) {
@@ -193,21 +193,21 @@ public class LibreHub {
     }
 
     static void checkUsername(String name) {
-        if (name.length() < 3  name.length() > 20) {
+        if (name.length() < 3 || name.length() > 20) {
             throw new IllegalArgumentException("Username must be 3-20 characters.");
         }
         for (int i = 0; i < name.length(); i++) {
             char c = name.charAt(i);
-            boolean allowed = (c >= 'a' && c <= 'z')  (c >= 'A' && c <= 'Z')
-                     (c >= '0' && c <= '9')  c == '.'  c == '';
+            boolean allowed = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+        || (c >= '0' && c <= '9') || c == '.' || c == '_';
             if (!allowed) {
-                throw new IllegalArgumentException("Username may only use letters, digits, '.' and ''.");
+                throw new IllegalArgumentException("Username may only use letters, digits, '.' and '_'.");
             }
         }
     }
 
     static void checkPassword(String password) {
-        if (password == null  password.length() < MIN_PASSWORD) {
+        if (password == null || password.length() < MIN_PASSWORD) {
             throw new IllegalArgumentException("Password must be at least " + MIN_PASSWORD + " characters.");
         }
     }
@@ -253,7 +253,7 @@ public class LibreHub {
 
     static int daysInMonth(int year, int month) {
         int[] days = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-        if (month == 2 && ((year % 4 == 0 && year % 100 != 0)  year % 400 == 0)) {
+        if (month == 2 && ((year % 4 == 0 && year % 100 != 0) || year % 400 == 0)) {
             return 29;
         }
         return days[month - 1];
@@ -276,7 +276,7 @@ public class LibreHub {
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException("Date must look like YYYY-MM-DD.");
         }
-        if (year < MIN_YEAR  month < 1  month > 12  day < 1 || day > daysInMonth(year, month)) {
+        if (year < MIN_YEAR || month < 1 || month > 12 || day < 1 || day > daysInMonth(year, month)) {
             throw new IllegalArgumentException("'" + text + "' is not a valid date.");
         }
         return toDayNumber(year, month, day);
