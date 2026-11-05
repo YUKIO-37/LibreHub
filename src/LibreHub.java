@@ -571,3 +571,292 @@ public class LibreHub {
             }
         }
     }
+
+    // 7. ACTIVITY LOG
+
+    static void audit(String text) throws IOException {
+        try (FileWriter writer = new FileWriter(fileNamed(ACTIVITY_LOG), true)) {
+            writer.write(fromDayNumber(today) + " " + text + "\n");
+        }
+    }
+
+    /** View the activity log. Admin only. */
+    static void viewActivityLog(String actor) throws IOException {
+        requireAdmin(actor);
+        File file = fileNamed(ACTIVITY_LOG);
+        System.out.println("==================== Activity Log ====================");
+        if (!file.exists()) {
+            System.out.println("No activity has been recorded yet.");
+        } else {
+            try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    System.out.println(line);
+                }
+            }
+        }
+        System.out.println("=======================================================");
+        audit("VIEW_ACTIVITY_LOG by " + actor);
+    }
+
+    // Display and update library-wide settings. Admin only.
+
+    static void systemSettingsScreen(String actor) throws IOException {
+        requireAdmin(actor);
+        System.out.println("==================== System Settings ====================");
+        System.out.println("Library date                 : " + fromDayNumber(today));
+        System.out.println("Loan period                  : " + LOAN_DAYS + " days");
+        System.out.println("Maximum active loans/member  : " + MAX_ACTIVE_LOANS);
+        System.out.println("Days in due-soon window      : " + DUE_SOON_DAYS);
+        System.out.println("Minimum password length      : " + MIN_PASSWORD);
+        System.out.println("==========================================================");
+
+        String changeDate = ask("Change library date? (y/n)");
+        if (changeDate.toLowerCase().startsWith("y")) {
+            setDate(actor, ask("New library date (YYYY-MM-DD)"));
+        }
+
+        String changePolicies = ask("Update circulation/security settings? (y/n)");
+        if (changePolicies.toLowerCase().startsWith("y")) {
+            System.out.println("Leave a setting blank to keep its current value.");
+            int newLoanDays = readSettingInput("Loan period in days [" + LOAN_DAYS + "]", LOAN_DAYS, 1, 365);
+            int newMaxLoans = readSettingInput("Maximum active loans per member [" + MAX_ACTIVE_LOANS + "]",
+                    MAX_ACTIVE_LOANS, 1, 20);
+            int newDueSoon = readSettingInput("Due-soon window in days [" + DUE_SOON_DAYS + "]",
+                    DUE_SOON_DAYS, 0, 60);
+            int newMinPassword = readSettingInput("Minimum password length [" + MIN_PASSWORD + "]",
+                    MIN_PASSWORD, 4, 32);
+
+            LOAN_DAYS = newLoanDays;
+            MAX_ACTIVE_LOANS = newMaxLoans;
+            DUE_SOON_DAYS = newDueSoon;
+            MIN_PASSWORD = newMinPassword;
+            saveSettings();
+            audit("UPDATE_SYSTEM_SETTINGS by " + actor);
+            System.out.println("System settings updated. New loan rules apply to future transactions.");
+        }
+    }
+
+    static int readSettingInput(String prompt, int current, int minimum, int maximum) {
+        String entered = ask(prompt);
+        if (entered.length() == 0) {
+            return current;
+        }
+        int value;
+        try {
+            value = Integer.parseInt(entered);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Enter a whole number.");
+        }
+        if (value < minimum || value > maximum) {
+            throw new IllegalArgumentException("Value must be between " + minimum + " and " + maximum + ".");
+        }
+        return value;
+    }
+
+    // Count lines in the activity log for the administrative report.
+    static int activityCount() throws IOException {
+        File file = fileNamed(ACTIVITY_LOG);
+        if (!file.exists()) {
+            return 0;
+        }
+        int count = 0;
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            while (reader.readLine() != null) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    // Administrative overview of users, collection, loans, and recorded activity.
+
+    static void administrativeReport(String actor) throws IOException {
+        requireAdmin(actor);
+        int admins = 0;
+        int librarians = 0;
+        int members = 0;
+        for (int i = 0; i < userCount; i++) {
+            if (ADMIN.equals(userRole[i])) {
+                admins++;
+            } else if (LIBRARIAN.equals(userRole[i])) {
+                librarians++;
+            } else if (MEMBER.equals(userRole[i])) {
+                members++;
+            }
+        }
+
+        int availableBooks = 0;
+        int booksOnLoan = 0;
+        for (int i = 0; i < bookCount; i++) {
+            if (bookOnLoan[i]) {
+                booksOnLoan++;
+            } else {
+                availableBooks++;
+            }
+        }
+
+        int activeLoans = 0;
+        int overdueLoans = 0;
+        int returnedLoans = 0;
+        for (int k = 0; k < loanCount; k++) {
+            if (loanReturned[k] == -1) {
+                activeLoans++;
+                if (isOverdue(k)) {
+                    overdueLoans++;
+                }
+            } else {
+                returnedLoans++;
+            }
+        }
+
+        System.out.println("================ Administrative Report ================");
+        System.out.println("Report date       : " + fromDayNumber(today));
+        System.out.println("[Accounts]");
+        System.out.println("  Administrators  : " + admins);
+        System.out.println("  Librarians      : " + librarians);
+        System.out.println("  Members         : " + members);
+        System.out.println("  Total users     : " + userCount);
+        System.out.println("[Collection]");
+        System.out.println("  Total books     : " + bookCount);
+        System.out.println("  Available       : " + availableBooks);
+        System.out.println("  On loan         : " + booksOnLoan);
+        System.out.println("[Circulation]");
+        System.out.println("  Active loans    : " + activeLoans);
+        System.out.println("  Overdue loans   : " + overdueLoans);
+        System.out.println("  Returned loans  : " + returnedLoans);
+        System.out.println("  All loan records: " + loanCount);
+        System.out.println("[System activity]");
+        System.out.println("  Log entries     : " + activityCount());
+        System.out.println("=======================================================");
+        audit("VIEW_ADMIN_REPORT by " + actor);
+    }
+
+    // Copy a text file line by line.
+    static void copyTextFile(File source, File target) throws IOException {
+        try (BufferedReader reader = new BufferedReader(new FileReader(source))) {
+            try (FileWriter writer = new FileWriter(target)) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    writer.write(line + "\n");
+                }
+            }
+        }
+    }
+
+    // Create a numbered backup folder containing all library data files.
+    static void createBackup(String actor) throws IOException {
+        requireAdmin(actor);
+        saveAll();
+        audit("CREATE_BACKUP by " + actor);
+
+        File backupRoot = new File(backupsPath());
+        if (!backupRoot.exists() && !backupRoot.mkdir()) {
+            throw new IOException("Could not create the backups folder.");
+        }
+        int number = 1;
+        String backupFolder = backupsPath() + "/backup_" + number;
+        while (new File(backupFolder).exists()) {
+            number++;
+            backupFolder = backupsPath() + "/backup_" + number;
+        }
+        if (!new File(backupFolder).mkdir()) {
+            throw new IOException("Could not create a backup folder.");
+        }
+
+        String[] names = {BOOKS_FILE, USERS_FILE, LOANS_FILE, SETTINGS_FILE, ACTIVITY_LOG};
+        for (int i = 0; i < names.length; i++) {
+            File source = fileNamed(names[i]);
+            if (source.exists()) {
+                copyTextFile(source, new File(backupFolder + "/" + names[i]));
+            }
+        }
+        System.out.println("Backup created: " + backupFolder);
+    }
+
+    // Reset counters and reload the data files after restoring a backup.
+    static void reloadAll() throws IOException {
+        bookCount = 0;
+        userCount = 0;
+        loanCount = 0;
+        today = 0;
+        loadAll();
+    }
+
+    // Restore a selected backup after first making a safety backup of current data.
+    static void restoreBackup(String actor, String backupName) throws IOException {
+        requireAdmin(actor);
+        if (!backupName.startsWith("backup_") || hasSeparator(backupName) || backupName.length() <= 7) {
+            throw new IllegalArgumentException("Enter a valid backup folder name, such as backup_1.");
+        }
+        for (int i = 7; i < backupName.length(); i++) {
+            if (backupName.charAt(i) < '0' || backupName.charAt(i) > '9') {
+                throw new IllegalArgumentException("Enter a valid backup folder name, such as backup_1.");
+            }
+        }
+        String backupFolder = backupsPath() + "/" + backupName;
+        if (!new File(backupFolder).exists()) {
+            throw new IllegalArgumentException("That backup folder does not exist.");
+        }
+
+        String[] required = {BOOKS_FILE, USERS_FILE, LOANS_FILE, SETTINGS_FILE};
+        for (int i = 0; i < required.length; i++) {
+            if (!new File(backupFolder + "/" + required[i]).exists()) {
+                throw new IllegalArgumentException("The selected backup is incomplete: missing " + required[i] + ".");
+            }
+        }
+
+        createBackup(actor); // Preserve the current data before restoring older records.
+        for (int i = 0; i < required.length; i++) {
+            copyTextFile(new File(backupFolder + "/" + required[i]), fileNamed(required[i]));
+        }
+        File savedLog = new File(backupFolder + "/" + ACTIVITY_LOG);
+        if (savedLog.exists()) {
+            copyTextFile(savedLog, fileNamed(ACTIVITY_LOG));
+        }
+        reloadAll();
+        if (!ADMIN.equals(roleOf(actor))) {
+            sessionUser = null;
+        }
+        audit("RESTORE_BACKUP " + backupName + " by " + actor);
+        System.out.println("Backup '" + backupName + "' restored successfully.");
+        if (sessionUser == null) {
+            System.out.println("The restored accounts changed your access. Please log in again.");
+        }
+    }
+
+    // Administrator menu option for creating or restoring a backup.
+    static void backupRestoreScreen(String actor) throws IOException {
+        requireAdmin(actor);
+        System.out.println("1. Create a backup");
+        System.out.println("2. Restore a backup");
+        System.out.println("0. Cancel");
+        int choice = askInt("Choose");
+        if (choice == 1) {
+            createBackup(actor);
+        } else if (choice == 2) {
+            // Backups are numbered backup_1, backup_2, ... so list them until a number is missing.
+            if (new File(backupsPath() + "/backup_1").exists()) {
+                System.out.println("Available backups:");
+            }
+            boolean found = false;
+            int n = 1;
+            while (new File(backupsPath() + "/backup_" + n).exists()) {
+                System.out.println("  backup_" + n);
+                found = true;
+                n++;
+            }
+            if (!found) {
+                System.out.println("No backups are available.");
+                return;
+            }
+            String backupName = ask("Backup folder to restore (example: backup_1)");
+            if (!"YES".equals(ask("Type YES to restore '" + backupName + "'"))) {
+                System.out.println("Restore cancelled.");
+                return;
+            }
+            restoreBackup(actor, backupName);
+        } else if (choice != 0) {
+            System.out.println("Invalid option.");
+        }
+    }
