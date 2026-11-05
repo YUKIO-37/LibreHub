@@ -860,3 +860,193 @@ public class LibreHub {
             System.out.println("Invalid option.");
         }
     }
+ // 8. LOGIN AND LOGOUT
+
+    static void login() throws IOException {
+        String name = ask("Username");
+        String password = ask("Password");
+        int i = findUser(name);
+        if (i < 0 || !userPassword[i].equals(password)) {
+            audit("LOGIN_FAILED " + name);
+            // Same message for unknown user and wrong password, so usernames are not revealed.
+            throw new IllegalArgumentException("Invalid username or password.");
+        }
+        sessionUser = userName[i];
+        audit("LOGIN " + userName[i] + " role=" + userRole[i]);
+        System.out.println("Logged in as " + userFullName[i] + " (" + roleLabel(userRole[i]) + ").");
+    }
+
+    static void logout() throws IOException {
+        audit("LOGOUT " + sessionUser);
+        System.out.println("Logged out.");
+        sessionUser = null;
+    }
+
+    // 9. USER CRED
+
+    // CREATE. actor == null means self-registration, which only creates members.
+    static void createUser(String actor, String username, String fullName, String password, String role)
+            throws IOException {
+        if (actor == null) {
+            if (!MEMBER.equals(role)) {
+                throw new IllegalArgumentException("Self-registration only creates member accounts.");
+            }
+        } else {
+            requireStaff(actor);
+            if (!MEMBER.equals(role) && !ADMIN.equals(roleOf(actor))) {
+                throw new IllegalArgumentException("Only administrators can create librarian or administrator accounts.");
+            }
+        }
+        checkUsername(username);
+        checkText(fullName, "Full name");
+        checkPassword(password);
+        if (findUser(username) >= 0) {
+            throw new IllegalArgumentException("Username '" + username + "' is already taken.");
+        }
+        if (userCount >= MAX_USERS) {
+            throw new IllegalArgumentException("The user list is full.");
+        }
+        userName[userCount] = username;
+        userFullName[userCount] = fullName;
+        userPassword[userCount] = password;
+        userRole[userCount] = role;
+        userCount++;
+        saveUsers();
+        audit("CREATE_USER " + username + " role=" + role + " by "
+                + (actor == null ? "self-registration" : actor));
+        System.out.println("Created " + roleLabel(role) + " account '" + username + "'.");
+    }
+
+    // GET one user. Admins can view anyone; librarians can view members; members can view themselves.
+    static void viewUser(String actor, String username) {
+        int i = findUser(username);
+        if (i < 0) {
+            throw new IllegalArgumentException("No user named '" + username + "'.");
+        }
+        String actorRole = roleOf(actor);
+        if (ADMIN.equals(actorRole)) {
+            // Administrators may view every account.
+        } else if (LIBRARIAN.equals(actorRole)) {
+            if (!MEMBER.equals(userRole[i])) {
+                throw new IllegalArgumentException("Librarians can only view member accounts.");
+            }
+        } else if (!sameName(userName[i], actor)) {
+            throw new IllegalArgumentException("You can only view your own account.");
+        }
+        System.out.println("Username : " + userName[i]);
+        System.out.println("Name     : " + userFullName[i]);
+        System.out.println("Role     : " + roleLabel(userRole[i]));
+    }
+
+    /** GET all users. Admin only. */
+    static void listUsers(String actor) {
+        requireAdmin(actor);
+        System.out.println(pad("Username", 18) + " " + pad("Full name", 26) + " Role");
+        for (int i = 0; i < userCount; i++) {
+            System.out.println(pad(userName[i], 18) + " " + pad(cut(userFullName[i], 26), 26)
+                    + " " + roleLabel(userRole[i]));
+        }
+    }
+
+    /*
+     * UPDATE a user. Null arguments keep the current value.
+     *  - anyone may edit their own name and password (a password change needs the current password)
+     *  - staff may edit members; librarians cannot edit other staff or admins
+     *  - only admins may change roles, and never their own
+     */
+
+    static void updateUser(String actor, String username, String newName, String newPassword,
+                           String currentPassword, String newRole) throws IOException {
+        int i = findUser(username);
+        if (i < 0) {
+            throw new IllegalArgumentException("No user named '" + username + "'.");
+        }
+        boolean self = sameName(userName[i], actor);
+        String actorRole = roleOf(actor);
+        if (!self) {
+            requireStaff(actor);
+            if (LIBRARIAN.equals(actorRole) && !MEMBER.equals(userRole[i])) {
+                throw new IllegalArgumentException("Librarians can only update member accounts.");
+            }
+        }
+
+        // Check everything first, so a failed check changes nothing.
+        String name = userFullName[i];
+        if (newName != null) {
+            checkText(newName, "Full name");
+            name = newName;
+        }
+        String password = userPassword[i];
+        if (newPassword != null) {
+            if (self && !userPassword[i].equals(currentPassword)) {
+                throw new IllegalArgumentException("Current password is incorrect.");
+            }
+            checkPassword(newPassword);
+            password = newPassword;
+        }
+        String role = userRole[i];
+        if (newRole != null && !newRole.equals(role)) {
+            if (!ADMIN.equals(actorRole)) {
+                throw new IllegalArgumentException("Only administrators can change roles.");
+            }
+            if (self) {
+                throw new IllegalArgumentException("You cannot change your own role.");
+            }
+            role = newRole;
+        }
+
+        userFullName[i] = name;
+        userPassword[i] = password;
+        userRole[i] = role;
+        saveUsers();
+        audit("UPDATE_USER " + userName[i] + " by " + actor);
+        System.out.println("Account '" + userName[i] + "' updated.");
+    }
+
+    // DELETES a user.
+    static void deleteUser(String actor, String username) throws IOException {
+        requireAdmin(actor);
+        int i = findUser(username);
+        if (i < 0) {
+            throw new IllegalArgumentException("No user named '" + username + "'.");
+        }
+        if (sameName(userName[i], actor)) {
+            throw new IllegalArgumentException("You cannot delete your own account.");
+        }
+        for (int k = 0; k < loanCount; k++) {
+            if (loanReturned[k] == -1 && sameName(loanUser[k], userName[i])) {
+                throw new IllegalArgumentException("'" + userName[i] + "' still has books on loan. Process the returns first.");
+            }
+        }
+        for (int j = i; j < userCount - 1; j++) {   // close the gap
+            userName[j] = userName[j + 1];
+            userFullName[j] = userFullName[j + 1];
+            userPassword[j] = userPassword[j + 1];
+            userRole[j] = userRole[j + 1];
+        }
+        userCount--;
+        saveUsers();
+        audit("DELETE_USER " + username + " by " + actor);
+        System.out.println("User '" + username + "' deleted.");
+    }
+
+    // CHANGE a user's role. Admin only, and administrators cannot change their own role.
+    static void changeUserRole(String actor, String username, String newRole) throws IOException {
+        requireAdmin(actor);
+        int i = findUser(username);
+        if (i < 0) {
+            throw new IllegalArgumentException("No user named '" + username + "'.");
+        }
+        if (sameName(userName[i], actor)) {
+            throw new IllegalArgumentException("You cannot change your own role.");
+        }
+        if (!MEMBER.equals(newRole) && !LIBRARIAN.equals(newRole) && !ADMIN.equals(newRole)) {
+            throw new IllegalArgumentException("Unknown role.");
+        }
+        String oldRole = userRole[i];
+        userRole[i] = newRole;
+        saveUsers();
+        audit("CHANGE_ROLE " + userName[i] + " from=" + oldRole + " to=" + newRole + " by " + actor);
+        System.out.println("Role for '" + userName[i] + "' changed to " + roleLabel(newRole) + ".");
+    }
+
